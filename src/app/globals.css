@@ -1,0 +1,411 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────
+   Bermakna Enterprise — token desain
+   Mengikuti Grand Design Visual KM ITB 2026/2027.
+
+   Grand theme  : #Bermakna
+   Kata kunci   : Radiant (gradien cerah) · Flowing (bentuk organis)
+                  · Striking (aksen solid berkontras)
+   Font         : Tilt Warp (heading, kapital) + Aleo (body)
+   ────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* ── Warna utama GDV ────────────────────────────────────────────── */
+  --color-merah-500: #d81623;
+  --color-kuning-400: #ffe030;
+  --color-mint-300: #9cf0e1;
+  --color-biru-500: #176bff;
+
+  /* ── Warna sekunder GDV ─────────────────────────────────────────── */
+  --color-merah-900: #970f18;
+  --color-hutan-900: #094e2c;
+  --color-laut-900: #08266e;
+  --color-oranye-500: #e57b12;
+  --color-hijau-600: #1a844f;
+  --color-tosca-500: #22a980;
+  --color-lime-300: #cef564;
+  --color-krem-50: #fffdf6;
+  --color-tinta-900: #151515;
+
+  /* ── Warna aksen GDV ────────────────────────────────────────────── */
+  --color-pink-500: #f137a6;
+  --color-ungu-500: #a500fd;
+
+  /* ── Turunan untuk kebutuhan antarmuka ──────────────────────────── */
+  /* Latar & garis, dihangatkan agar menyatu dengan krem #FFF8E5. */
+  --color-krem-100: #fff8e5;
+  --color-krem-200: #fbeed1;
+  --color-krem-300: #f0e0ba;
+  --color-krem-400: #e2cd9c;
+
+  /* Tangga netral dari hitam GDV #151515. */
+  --color-tinta-950: #0a0a0a;
+  --color-tinta-800: #2a2a2a;
+  --color-tinta-700: #3f3f3f;
+  --color-tinta-600: #5e5e5e;
+  --color-tinta-500: #7c7c7c;
+  --color-tinta-400: #9c9c9c;
+
+  /* Nuansa muda untuk lencana dan kotak pesan. */
+  --color-merah-100: #fde3e5;
+  --color-kuning-100: #fff6cc;
+  --color-biru-100: #dde9ff;
+  --color-hijau-100: #dcf3e6;
+  --color-mint-100: #e6fbf6;
+  --color-pink-100: #fde0f1;
+  --color-ungu-100: #f0e0ff;
+
+  --font-display: var(--font-tilt-warp), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-aleo), Georgia, "Times New Roman", serif;
+
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-krem-100);
+    color: var(--color-tinta-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* GDV: Heading memakai Tilt Warp. Judul tingkat halaman dan bagian saja —
+     h3/h4 berperan sebagai Subheading, yang menurut Font Guide memakai
+     Aleo Semibold agar tetap nyaman dibaca pada ukuran kecil. */
+  h3,
+  h4 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    color: var(--color-tinta-900);
+    letter-spacing: -0.005em;
+  }
+
+  /* Judul bagian selalu kapital sesuai Font Guide GDV. h1 tidak diikutkan
+     karena sebagian halaman memakainya untuk judul konten (nama layanan),
+     yang tidak pantas ditulis kapital seluruhnya. */
+  h2 {
+    text-transform: uppercase;
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    color: var(--color-tinta-900);
+    font-weight: 400;
+    letter-spacing: 0.005em;
+    line-height: 1.12;
+    /* Tilt Warp hanya tersedia pada satu bobot. Tanpa baris ini, kelas
+       font-bold/font-extrabold membuat peramban memalsukan tebal dan
+       hurufnya jadi kotor. */
+    font-synthesis-weight: none;
+  }
+
+  ::selection {
+    background: var(--color-kuning-400);
+    color: var(--color-tinta-900);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-merah-500);
+    outline-offset: 2px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Utilitas dasar (ditulis sebagai @utility agar bisa di-@apply ulang).
+   ────────────────────────────────────────────────────────────────────── */
+
+@utility card {
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, var(--color-krem-300) 75%, transparent);
+  background-color: #fff;
+  box-shadow:
+    0 1px 2px rgb(21 21 21 / 0.04),
+    0 10px 28px -18px rgb(21 21 21 / 0.22);
+}
+
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-xl);
+  padding: 0.625rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  transition-property: color, background-color, border-color, box-shadow, filter, transform;
+  transition-duration: 150ms;
+}
+@utility btn {
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+@utility badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Radiant: gradien warna-warni cerah seperti sinar cahaya ────────── */
+
+@utility pita-gradien {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-merah-500),
+    var(--color-pink-500) 55%,
+    var(--color-ungu-500)
+  );
+}
+
+/* Radiant penuh — dipakai pada momen brand besar dan aset dekoratif. */
+@utility pita-radiant {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-merah-500),
+    var(--color-pink-500) 30%,
+    var(--color-ungu-500) 58%,
+    var(--color-biru-500)
+  );
+}
+
+@utility pita-hangat {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-merah-500),
+    var(--color-oranye-500) 52%,
+    var(--color-kuning-400)
+  );
+}
+
+@utility pita-sejuk {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-biru-500),
+    var(--color-tosca-500) 55%,
+    var(--color-mint-300)
+  );
+}
+
+@utility teks-gradien {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-merah-500),
+    var(--color-pink-500) 45%,
+    var(--color-ungu-500) 75%,
+    var(--color-biru-500)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@layer components {
+  /* ── Tata letak ─────────────────────────────────────────────────── */
+  .wrap {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .wrap-narrow {
+    @apply mx-auto w-full max-w-3xl px-4 sm:px-6;
+  }
+
+  .card-pad {
+    @apply card p-5 sm:p-6;
+  }
+
+  /* ── Tipografi GDV ──────────────────────────────────────────────── */
+  /* Heading kapital sesuai panduan font GDV. */
+  .judul {
+    font-family: var(--font-display);
+    font-synthesis-weight: none;
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    line-height: 1.1;
+  }
+
+  /* Subheading: Aleo Semibold, boleh dimiringkan 4–6° (GDV hlm. 17). */
+  .subjudul {
+    @apply font-sans font-semibold;
+  }
+
+  .miring-gdv {
+    transform: rotate(-4deg);
+  }
+
+  .eyebrow {
+    @apply font-sans text-xs font-semibold tracking-[0.16em] text-tinta-600 uppercase;
+  }
+
+  /* ── Tombol ─────────────────────────────────────────────────────── */
+  .btn-primary {
+    @apply btn pita-gradien text-white;
+    box-shadow: 0 6px 18px -8px rgb(216 22 35 / 0.85);
+  }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    @apply btn border border-tinta-900/15 bg-white text-tinta-900 hover:border-tinta-900/35 hover:bg-krem-50;
+  }
+
+  .btn-ghost {
+    @apply btn text-tinta-700 hover:bg-krem-200/70 hover:text-tinta-900;
+  }
+
+  .btn-danger {
+    @apply btn border border-merah-500/25 bg-merah-100 text-merah-900 hover:bg-merah-500/15;
+  }
+
+  .btn-success {
+    @apply btn border border-hijau-600/25 bg-hijau-100 text-hijau-600 hover:brightness-95;
+  }
+
+  .btn-wa {
+    @apply btn border border-[#25d366]/35 bg-[#25d366]/12 text-[#12724a] hover:bg-[#25d366]/22;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3.5 text-base;
+  }
+
+  .btn-block {
+    @apply w-full;
+  }
+
+  /* ── Formulir ───────────────────────────────────────────────────── */
+  .label {
+    @apply mb-1.5 block font-sans text-sm font-semibold text-tinta-800;
+  }
+
+  .hint {
+    @apply mt-1.5 text-xs text-tinta-600;
+  }
+
+  .input,
+  .textarea,
+  .select {
+    @apply w-full rounded-xl border border-krem-400 bg-white px-3.5 py-2.5 font-sans text-sm text-tinta-900
+           placeholder:text-tinta-400 focus:border-biru-500 focus:outline-none
+           focus:ring-4 focus:ring-biru-500/15 disabled:bg-krem-100;
+  }
+
+  .textarea {
+    @apply min-h-28 resize-y leading-relaxed;
+  }
+
+  .select {
+    @apply cursor-pointer appearance-none bg-[length:1rem] bg-[right_0.85rem_center] bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%235e5e5e'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+  }
+
+  .file-input {
+    @apply w-full rounded-xl border border-dashed border-krem-400 bg-krem-50 px-3.5 py-3 font-sans text-sm text-tinta-700
+           file:mr-3 file:rounded-lg file:border-0 file:bg-tinta-900 file:px-3 file:py-1.5
+           file:font-sans file:text-xs file:font-semibold file:text-white hover:border-biru-500;
+  }
+
+  /* ── Warna lencana status ───────────────────────────────────────── */
+  .badge-neutral {
+    @apply bg-krem-200 text-tinta-700;
+  }
+  .badge-info {
+    @apply bg-biru-100 text-biru-500;
+  }
+  .badge-warning {
+    @apply bg-kuning-100 text-oranye-500;
+  }
+  .badge-success {
+    @apply bg-hijau-100 text-hijau-600;
+  }
+  .badge-danger {
+    @apply bg-merah-100 text-merah-900;
+  }
+
+  .tautan {
+    @apply font-semibold text-merah-500 underline-offset-4 hover:underline;
+  }
+
+  /* ── Tabel data ─────────────────────────────────────────────────── */
+  .tabel {
+    @apply w-full border-collapse text-left font-sans text-sm;
+  }
+  .tabel th {
+    @apply border-b border-krem-300 px-4 py-3 text-xs font-semibold tracking-wide text-tinta-600 uppercase;
+  }
+  .tabel td {
+    @apply border-b border-krem-200 px-4 py-3 align-middle text-tinta-800;
+  }
+  .tabel tbody tr:hover {
+    @apply bg-krem-50;
+  }
+  .tabel-scroll {
+    @apply -mx-5 overflow-x-auto sm:mx-0;
+  }
+}
+
+/* ── Aset visual GDV ─────────────────────────────────────────────────
+   Flowing: bentuk organis seperti aliran air, gradien + blur progresif.
+   Striking: lingkaran dan setengah lingkaran solid warna-warni.
+   ────────────────────────────────────────────────────────────────────── */
+
+.flowing {
+  position: absolute;
+  pointer-events: none;
+  filter: blur(38px);
+  opacity: 0.5;
+  /* Bentuk organis, bukan lingkaran sempurna. */
+  border-radius: 58% 42% 47% 53% / 44% 51% 49% 56%;
+}
+
+.flowing-lambat {
+  animation: mengalir 22s ease-in-out infinite alternate;
+}
+
+@keyframes mengalir {
+  from {
+    border-radius: 58% 42% 47% 53% / 44% 51% 49% 56%;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  to {
+    border-radius: 45% 55% 58% 42% / 56% 44% 56% 44%;
+    transform: translate3d(0, -14px, 0) rotate(8deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flowing-lambat {
+    animation: none;
+  }
+}
+
+/* Menyembunyikan scrollbar pada baris chip yang bisa digeser. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

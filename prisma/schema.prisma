@@ -1,0 +1,267 @@
+// ─────────────────────────────────────────────────────────────────────────
+// Bermakna Enterprise — Marketplace jasa mahasiswa ITB
+// Skema basis data untuk 8 sistem inti pada proposal PMW 2026.
+//
+// Basis data: PostgreSQL (Supabase).
+// Nilai berstatus disimpan sebagai String, bukan enum Prisma, agar
+// penambahan status baru tidak memerlukan migrasi skema. Daftar nilai yang
+// sah dijaga di src/lib/constants.ts.
+// ─────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Transaction pooler Supabase (port 6543) — dipakai aplikasi. Wajib untuk
+  // lingkungan serverless agar koneksi database tidak cepat habis.
+  url       = env("DATABASE_URL")
+  // Session pooler (port 5432) — dipakai Prisma saat migrasi dan `db push`,
+  // yang tidak bisa berjalan lewat transaction pooler.
+  directUrl = env("DIRECT_URL")
+}
+
+/// Akun: pengguna jasa, penyedia jasa, dan administrator.
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("USER") // USER | PROVIDER | ADMIN
+  phone        String? // nomor WhatsApp
+  campus       String   @default("GANESHA") // GANESHA | JATINANGOR | CIREBON
+  faculty      String?
+  batch        String? // angkatan, mis. "2023"
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  provider         Provider?
+  orders           Order[]        @relation("BuyerOrders")
+  reviews          Review[]
+  notifications    Notification[]
+  verifiedPayments Payment[]      @relation("PaymentVerifier")
+
+  @@index([role])
+}
+
+/// Profil penyedia jasa + status verifikasi (sistem "Verifikasi Penyedia").
+model Provider {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline     String
+  about        String
+  nim          String
+  studyProgram String
+  ktmUrl       String? // bukti mahasiswa untuk verifikasi admin
+  status       String    @default("PENDING") // PENDING | VERIFIED | REJECTED
+  reviewNote   String? // catatan admin saat menolak
+  verifiedAt   DateTime?
+
+  // Revenue stream "premium listing" pada model bisnis proposal.
+  isPremium    Boolean   @default(false)
+  premiumUntil DateTime?
+
+  bankName    String?
+  bankAccount String?
+  bankHolder  String?
+
+  ratingAvg       Float @default(0)
+  ratingCount     Int   @default(0)
+  completedOrders Int   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services  Service[]
+  orders    Order[]
+  portfolio PortfolioItem[]
+  reviews   Review[]
+
+  @@index([status])
+}
+
+/// Sepuluh kategori layanan pada proposal.
+model Category {
+  id      String    @id @default(cuid())
+  slug    String    @unique
+  name    String
+  tagline String
+  icon    String
+  order   Int       @default(0)
+  services Service[]
+}
+
+/// Layanan yang dijual penyedia (termasuk listing kos & kontrakan).
+model Service {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  description  String
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  providerId   String
+  provider     Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  price        Int
+  priceUnit    String   @default("PER_SESI") // lihat PRICE_UNITS
+  campus       String   @default("GANESHA")
+  location     String?
+  deliveryDays Int?
+  coverUrl     String?
+  status       String   @default("ACTIVE") // ACTIVE | PAUSED | TAKEDOWN
+  views        Int      @default(0)
+  ratingAvg    Float    @default(0)
+  ratingCount  Int      @default(0)
+  orderCount   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  images  ServiceImage[]
+  orders  Order[]
+  reviews Review[]
+
+  @@index([categoryId])
+  @@index([providerId])
+  @@index([status])
+}
+
+/// Galeri foto sebuah layanan.
+model ServiceImage {
+  id        String  @id @default(cuid())
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  url       String
+  order     Int     @default(0)
+
+  @@index([serviceId])
+}
+
+/// Portofolio penyedia (contoh karya desain, dokumentasi, video, dll).
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  imageUrl    String
+  link        String?
+  createdAt   DateTime @default(now())
+
+  @@index([providerId])
+}
+
+/// Transaksi pemesanan — tulang punggung "Sistem Pemesanan" & "Database Transaksi".
+model Order {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  buyerId    String
+  buyer      User     @relation("BuyerOrders", fields: [buyerId], references: [id])
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id])
+
+  quantity  Int @default(1)
+  unitPrice Int
+  subtotal  Int
+
+  // Revenue stream: biaya administrasi (dibayar pembeli) + komisi (dipotong dari penyedia)
+  adminFee       Int
+  commission     Int
+  total          Int // yang dibayar pembeli  = subtotal + adminFee
+  providerPayout Int // yang diterima penyedia = subtotal - commission
+
+  status       String    @default("MENUNGGU_KONFIRMASI")
+  note         String?
+  scheduledAt  DateTime?
+  contactPhone String?
+  rejectReason String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  payment  Payment?
+  review   Review?
+  timeline OrderEvent[]
+
+  @@index([buyerId])
+  @@index([providerId])
+  @@index([status])
+}
+
+/// Jejak audit perubahan status pesanan.
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  message   String
+  actor     String
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+/// Pembayaran transfer manual + bukti bayar yang diverifikasi admin.
+model Payment {
+  id           String    @id @default(cuid())
+  orderId      String    @unique
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method       String    @default("TRANSFER")
+  amount       Int
+  senderName   String
+  senderBank   String
+  proofUrl     String
+  status       String    @default("MENUNGGU") // MENUNGGU | TERVERIFIKASI | DITOLAK
+  note         String?
+  verifiedById String?
+  verifiedBy   User?     @relation("PaymentVerifier", fields: [verifiedById], references: [id])
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([status])
+}
+
+/// Rating & review — hanya bisa ditulis pembeli pada pesanan yang selesai.
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  rating     Int
+  comment    String
+  reply      String? // balasan penyedia
+  createdAt  DateTime @default(now())
+
+  @@index([serviceId])
+  @@index([providerId])
+}
+
+/// Notifikasi in-app untuk perubahan status pesanan & verifikasi.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+/// Pengaturan platform yang bisa diubah admin (komisi, biaya admin, rekening).
+model Setting {
+  key   String @id
+  value String
+}

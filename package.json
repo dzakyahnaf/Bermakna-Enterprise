@@ -1,0 +1,41 @@
+{
+  "name": "bermakna-enterprise",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bermakna Enterprise — Marketplace jasa mahasiswa ITB, terintegrasi. (PMW 2026)",
+  "scripts": {
+    "setup": "prisma generate && prisma db push && npm run db:seed",
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "cek:rute": "node --env-file=.env scripts/cek-rute.mjs",
+    "cek:supabase": "node --env-file=.env scripts/cek-supabase.mjs",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma db push && npm run db:seed",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "@supabase/supabase-js": "^2.112.3",
+    "next": "15.5.23",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "prisma": "6.19.3",
+    "tailwindcss": "^4.1.11",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
