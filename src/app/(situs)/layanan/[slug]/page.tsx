@@ -61,22 +61,28 @@ export default async function DetailLayanan({ params }: Params) {
   const tersedia = layanan.status === "ACTIVE" && layanan.provider.status === "VERIFIED";
   if (!tersedia && !milikSendiri && user?.role !== "ADMIN") notFound();
 
-  // Penghitung tampilan sederhana (tidak menghitung kunjungan pemilik sendiri).
-  if (!milikSendiri) {
-    await prisma.service.update({ where: { id: layanan.id }, data: { views: { increment: 1 } } });
-  }
-
-  const serupa = await prisma.service.findMany({
-    where: {
-      categoryId: layanan.categoryId,
-      status: "ACTIVE",
-      provider: { status: "VERIFIED" },
-      NOT: { id: layanan.id },
-    },
-    orderBy: { ratingAvg: "desc" },
-    take: 3,
-    select: PILIH_KARTU_LAYANAN,
-  });
+  // Penghitung tampilan dijalankan berbarengan dengan query layanan serupa,
+  // supaya penulisan ini tidak menambah waktu tunggu pengguna.
+  const [serupa] = await Promise.all([
+    prisma.service.findMany({
+      where: {
+        categoryId: layanan.categoryId,
+        status: "ACTIVE",
+        provider: { status: "VERIFIED" },
+        NOT: { id: layanan.id },
+      },
+      orderBy: { ratingAvg: "desc" },
+      take: 3,
+      select: PILIH_KARTU_LAYANAN,
+    }),
+    // Kunjungan pemilik sendiri tidak dihitung.
+    milikSendiri
+      ? Promise.resolve(null)
+      : prisma.service.update({
+          where: { id: layanan.id },
+          data: { views: { increment: 1 } },
+        }),
+  ]);
 
   const gambar = [
     ...(layanan.coverUrl ? [layanan.coverUrl] : []),

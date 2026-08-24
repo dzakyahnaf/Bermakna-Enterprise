@@ -209,13 +209,14 @@ Lima variabel yang wajib ada, untuk environment *Production*, *Preview*, dan *De
 
 ### Memeriksa hasil deploy
 
-Buka `/api/diagnostik` pada domain yang bersangkutan, misalnya
-`https://namaproyek.vercel.app/api/diagnostik`. Endpoint itu melaporkan variabel mana
-yang terisi, host database yang dipakai, serta hasil uji koneksi database dan storage —
+Tambahkan variabel `DIAGNOSTIK=1` di Vercel lalu Redeploy, kemudian buka
+`/api/diagnostik` pada domain tersebut. Endpoint itu melaporkan variabel mana yang
+terisi, host database yang dipakai, serta hasil uji koneksi database dan storage —
 **tanpa pernah menampilkan kata sandi atau kunci** (semuanya disamarkan).
 
-Balasan `"sehat": true` berarti konfigurasi sudah benar. Setelah itu **hapus
-`src/app/api/diagnostik/route.ts`** agar tidak ikut tayang di produksi.
+Balasan `"sehat": true` berarti konfigurasi sudah benar. Setelah selesai, **hapus lagi
+variabel `DIAGNOSTIK`** — tanpa variabel itu endpointnya membalas 404, jadi tidak
+memaparkan apa pun di produksi.
 
 ### Catatan teknis
 
@@ -225,6 +226,32 @@ Balasan `"sehat": true` berarti konfigurasi sudah benar. Setelah itu **hapus
 - `next build` sengaja tidak menyentuh database, jadi build tetap berhasil walaupun
   variabel database belum diatur. Konsekuensinya, kesalahan konfigurasi baru terlihat
   saat halaman dibuka — bukan saat build.
+
+---
+
+## Kecepatan & umpan balik pemuatan
+
+Setiap halaman dirender di server dan menyentuh database, sehingga ada jeda nyata
+sebelum isinya muncul. Dua hal menanganinya:
+
+**Region fungsi.** `vercel.json` mengunci fungsi ke `icn1` (Seoul) — region yang sama
+dengan proyek Supabase (`ap-northeast-2`). Bawaan Vercel adalah `iad1` (Virginia), yang
+membuat setiap query menyeberangi Pasifik dan menambah sekitar tiga detik per halaman.
+
+> Kalau kelak proyek Supabase dipindah ke region lain, ubah juga `regions` di
+> `vercel.json` agar keduanya tetap sekota. Paket Hobby hanya boleh satu region.
+
+**Umpan balik.** Pengguna tidak boleh menunggu tanpa tanda apa pun:
+
+| Lapisan | Wujud |
+| ------- | ----- |
+| `loading.tsx` tiap segmen | Kerangka halaman muncul seketika saat berpindah |
+| `<BilahMemuat>` | Bilah gradien radiant di puncak layar selama memuat |
+| `<PemintalTautan>` | Pemintal pada tautan yang baru diklik (`useLinkStatus`) |
+| `<SubmitButton>` | Tombol formulir menjadi "Memproses…" (`useFormStatus`) |
+
+Komponen kerangkanya ada di `src/components/memuat.tsx`. Semua animasi berhenti bila
+pengguna mengaktifkan *prefers-reduced-motion*.
 
 ---
 

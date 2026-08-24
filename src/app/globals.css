@@ -401,6 +401,52 @@
   }
 }
 
+/* ── Umpan balik pemuatan ────────────────────────────────────────────────
+   Kilau pada kerangka konten dan bilah kemajuan di puncak layar.
+   ────────────────────────────────────────────────────────────────────── */
+
+.berkilau {
+  position: relative;
+  overflow: hidden;
+}
+
+.berkilau::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.75),
+    transparent
+  );
+  animation: berkilau 1.4s ease-in-out infinite;
+}
+
+@keyframes berkilau {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes meluncur {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* Hormati pengguna yang mematikan animasi: kerangka tetap terlihat,
+   hanya geraknya yang dihentikan. */
+@media (prefers-reduced-motion: reduce) {
+  .berkilau::after {
+    animation: none;
+  }
+}
+
 /* Menyembunyikan scrollbar pada baris chip yang bisa digeser. */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Icon, type IconName } from "@/components/ui";
+import { PemintalTautan } from "@/components/tautan-nav";
 
 export type ItemNav = {
   href: string;
@@ -35,6 +36,7 @@ export function DashboardNav({ items }: { items: ItemNav[] }) {
         >
           <Icon name={item.icon} size={17} />
           <span className="whitespace-nowrap">{item.label}</span>
+          <PemintalTautan />
           {item.badge !== undefined && item.badge > 0 && (
             <span
               className={`ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold ${

@@ -6,16 +6,26 @@ import { prisma } from "@/lib/prisma";
  * Endpoint pemeriksa kesehatan deployment.
  *
  * Dibuat untuk menemukan penyebab galat setelah deploy tanpa harus membuka
- * log server. Buka /api/diagnostik pada domain yang bermasalah.
+ * log server. Di produksi endpoint ini MATI secara bawaan — nyalakan dengan
+ * menambahkan variabel DIAGNOSTIK=1 di Vercel, lalu Redeploy.
  *
  * Yang dilaporkan hanya: variabel mana yang terisi, host dan awalan nilainya,
  * serta hasil uji koneksi. NILAI RAHASIA TIDAK PERNAH DIKELUARKAN — kata sandi
  * dan token disamarkan oleh fungsi samarkan() di bawah.
- *
- * Hapus berkas ini setelah masalah deployment beres.
  */
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Mati secara bawaan. Endpoint ini memaparkan konfigurasi infrastruktur
+ * (walau tanpa nilai rahasia), jadi tidak pantas terbuka terus-menerus di
+ * produksi. Nyalakan hanya ketika sedang menelusuri masalah deployment:
+ * tambahkan variabel DIAGNOSTIK=1 di Vercel, Redeploy, lalu hapus lagi
+ * variabelnya setelah selesai.
+ */
+function aktif() {
+  return process.env.DIAGNOSTIK === "1" || process.env.NODE_ENV !== "production";
+}
 
 /** Membuang kata sandi, token, dan kunci dari teks apa pun sebelum ditampilkan. */
 function samarkan(teks: string): string {
@@ -53,6 +63,10 @@ function periksaVar(nama: string, nilai: string | undefined) {
 }
 
 export async function GET() {
+  if (!aktif()) {
+    return new Response("Not found", { status: 404 });
+  }
+
   const secretKey =
     process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -128,7 +142,7 @@ export async function GET() {
       database,
       storage,
       saran: sehat
-        ? "Semua sehat. Hapus berkas src/app/api/diagnostik/route.ts."
+        ? "Semua sehat. Hapus variabel DIAGNOSTIK di Vercel untuk menutup endpoint ini lagi."
         : !semuaTerisi
           ? "Ada variabel yang belum terisi. Tambahkan di Vercel ▸ Settings ▸ Environment Variables, lalu Redeploy."
           : "Variabel lengkap tetapi koneksi gagal — periksa pesan galat di atas.",

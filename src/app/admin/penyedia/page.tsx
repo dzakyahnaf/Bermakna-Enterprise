@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Kelola Penyedia" };
 export default async function KelolaPenyedia() {
   await requireAdmin();
 
-  const [penyedia, jumlahPremium] = await Promise.all([
+  const [penyedia, jumlahPremium, pendapatanPerPenyedia] = await Promise.all([
     prisma.provider.findMany({
       orderBy: [{ status: "asc" }, { completedOrders: "desc" }],
       include: {
@@ -24,13 +24,14 @@ export default async function KelolaPenyedia() {
       },
     }),
     prisma.provider.count({ where: { isPremium: true } }),
+    // Digabung ke Promise.all agar tidak menambah satu perjalanan ke database.
+    prisma.order.groupBy({
+      by: ["providerId"],
+      where: { status: "SELESAI" },
+      _sum: { providerPayout: true },
+    }),
   ]);
 
-  const pendapatanPerPenyedia = await prisma.order.groupBy({
-    by: ["providerId"],
-    where: { status: "SELESAI" },
-    _sum: { providerPayout: true },
-  });
   const petaPendapatan = new Map(
     pendapatanPerPenyedia.map((p) => [p.providerId, p._sum.providerPayout ?? 0]),
   );

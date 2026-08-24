@@ -22,7 +22,7 @@ export default async function KelolaPengguna({
   const q = (sp.q ?? "").trim();
   const peran = sp.peran ?? "";
 
-  const [pengguna, totalPengguna, totalPenyedia, nonaktif] = await Promise.all([
+  const [pengguna, totalPengguna, totalPenyedia, nonaktif, belanja] = await Promise.all([
     prisma.user.findMany({
       where: {
         ...(q
@@ -40,13 +40,14 @@ export default async function KelolaPengguna({
     prisma.user.count({ where: { role: "USER" } }),
     prisma.user.count({ where: { role: "PROVIDER" } }),
     prisma.user.count({ where: { isActive: false } }),
+    // Digabung ke Promise.all agar tidak menambah satu perjalanan ke database.
+    prisma.order.groupBy({
+      by: ["buyerId"],
+      where: { status: { in: ["DIKERJAKAN", "SELESAI"] } },
+      _sum: { total: true },
+    }),
   ]);
 
-  const belanja = await prisma.order.groupBy({
-    by: ["buyerId"],
-    where: { status: { in: ["DIKERJAKAN", "SELESAI"] } },
-    _sum: { total: true },
-  });
   const petaBelanja = new Map(belanja.map((b) => [b.buyerId, b._sum.total ?? 0]));
 
   const PERAN = [

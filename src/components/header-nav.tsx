@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Avatar, Icon } from "@/components/ui";
+import { PemintalTautan } from "@/components/tautan-nav";
 
 export type NavUser = {
   name: string;
@@ -59,13 +60,14 @@ export function HeaderNav({ user }: { user: NavUser | null }) {
           <Link
             key={t.href}
             href={t.href}
-            className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
               aktif(t.href)
                 ? "bg-krem-200 text-tinta-900"
                 : "text-tinta-700 hover:bg-krem-200/60 hover:text-tinta-900"
             }`}
           >
             {t.label}
+            <PemintalTautan />
           </Link>
         ))}
       </nav>
@@ -173,11 +175,12 @@ export function HeaderNav({ user }: { user: NavUser | null }) {
               <Link
                 key={t.href}
                 href={t.href}
-                className={`rounded-lg px-3 py-2.5 text-sm font-semibold ${
+                className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold ${
                   aktif(t.href) ? "bg-krem-200 text-tinta-900" : "text-tinta-700"
                 }`}
               >
                 {t.label}
+                <PemintalTautan />
               </Link>
             ))}
           </nav>
@@ -214,6 +217,7 @@ function ItemMenu({
     >
       <Icon name={icon} size={16} />
       {children}
+      <PemintalTautan className="ml-auto" />
     </Link>
   );
 }
