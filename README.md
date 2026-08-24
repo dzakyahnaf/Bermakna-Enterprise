@@ -188,6 +188,46 @@ penyimpanan Supabase paket gratis hanya 1 GB.
 
 ---
 
+## Deploy ke Vercel
+
+**Berkas `.env` tidak ikut ter-commit** (memang sengaja — isinya rahasia). Karena itu
+Vercel tidak mendapat satu pun variabel dari repositori; semuanya harus dimasukkan
+manual di **Vercel ▸ Settings ▸ Environment Variables**, lalu **Redeploy**.
+
+Lima variabel yang wajib ada, untuk environment *Production*, *Preview*, dan *Development*:
+
+| Variabel                    | Sumber                                                |
+| --------------------------- | ----------------------------------------------------- |
+| `DATABASE_URL`              | Supabase ▸ Connect ▸ ORMs ▸ Transaction pooler (6543)  |
+| `DIRECT_URL`                | Supabase ▸ Connect ▸ ORMs ▸ Session pooler (5432)      |
+| `NEXT_PUBLIC_SUPABASE_URL`  | Supabase ▸ Settings ▸ API Keys ▸ Project URL           |
+| `SUPABASE_SECRET_KEY`       | Supabase ▸ Settings ▸ API Keys ▸ Secret keys           |
+| `SESSION_SECRET`            | Buat baru, jangan pakai nilai yang sama dengan lokal   |
+
+> Menambahkan variabel **tidak** otomatis menerapkannya. Setelah menyimpan, buka tab
+> **Deployments** lalu **Redeploy** — deployment lama tetap memakai konfigurasi lamanya.
+
+### Memeriksa hasil deploy
+
+Buka `/api/diagnostik` pada domain yang bersangkutan, misalnya
+`https://namaproyek.vercel.app/api/diagnostik`. Endpoint itu melaporkan variabel mana
+yang terisi, host database yang dipakai, serta hasil uji koneksi database dan storage —
+**tanpa pernah menampilkan kata sandi atau kunci** (semuanya disamarkan).
+
+Balasan `"sehat": true` berarti konfigurasi sudah benar. Setelah itu **hapus
+`src/app/api/diagnostik/route.ts`** agar tidak ikut tayang di produksi.
+
+### Catatan teknis
+
+- `binaryTargets` pada `prisma/schema.prisma` menyertakan `rhel-openssl-3.0.x`, yaitu
+  runtime serverless Vercel. Tanpa itu Prisma bisa gagal menemukan query engine dan
+  setiap query berujung galat 500, meski build-nya sukses.
+- `next build` sengaja tidak menyentuh database, jadi build tetap berhasil walaupun
+  variabel database belum diatur. Konsekuensinya, kesalahan konfigurasi baru terlihat
+  saat halaman dibuka — bukan saat build.
+
+---
+
 ## Identitas visual
 
 Seluruh antarmuka mengikuti **Grand Design Visual KM ITB 2026/2027**.

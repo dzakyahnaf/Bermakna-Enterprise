@@ -10,6 +10,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" untuk mesin pengembang; "rhel-openssl-3.0.x" adalah runtime
+  // serverless Vercel. Tanpa ini, Prisma kadang gagal menemukan query engine
+  // saat dideploy dan setiap query berujung galat 500.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
