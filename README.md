@@ -255,6 +255,26 @@ pengguna mengaktifkan *prefers-reduced-motion*.
 
 ---
 
+## Memasang domain sendiri
+
+1. **Vercel ▸ Settings ▸ Domains ▸ Add Domain** — masukkan domainnya. Vercel akan
+   menawarkan menambahkan `www` sekaligus; terima saja.
+2. Vercel menampilkan nilai DNS **khusus proyek ini**. Salin apa adanya ke panel DNS
+   registrar:
+   - domain utama (`@`) → **A record** ke alamat IP yang ditampilkan Vercel
+   - `www` → **CNAME** ke nilai yang ditampilkan Vercel (berbentuk
+     `xxxxxxxx.vercel-dns-0xx.com`, berbeda untuk tiap proyek — jangan menyalin
+     dari panduan mana pun di internet)
+3. Tunggu propagasi, lalu Vercel menerbitkan sertifikat HTTPS sendiri.
+4. Tambahkan variabel **`NEXT_PUBLIC_SITE_URL`** di Vercel berisi alamat domain
+   barunya, misalnya `https://contoh.my.id`, lalu **Redeploy**. Variabel ini dipakai
+   `metadataBase`, `robots.txt`, dan `sitemap.xml`; tanpa itu ketiganya masih
+   menunjuk ke alamat `.vercel.app`.
+
+Tidak ada URL yang ter-hardcode di dalam kode, jadi tidak ada berkas yang perlu diubah.
+
+---
+
 ## Identitas visual
 
 Seluruh antarmuka mengikuti **Grand Design Visual KM ITB 2026/2027**.
@@ -300,6 +320,8 @@ warna, sepuluh kategori layanan juga mendapat warnanya sendiri lewat
 | `npm run setup`       | Buat tabel + isi data contoh (sekali di awal)                      |
 | `npm run cek:supabase`| Periksa koneksi, bucket, dan izin penyimpanan                      |
 | `npm run cek:rute`    | Smoke test seluruh halaman & penjagaan akses (server harus hidup)  |
+| `npm run cek:otorisasi`| Uji bahwa data milik orang lain tidak bisa dibuka lewat URL        |
+| `npm run cek:data`    | Audit integritas data: uang, status, agregat, berkas pribadi        |
 | `npm run db:push`     | Terapkan perubahan skema ke database                               |
 | `npm run db:seed`     | Isi ulang data contoh                                              |
 | `npm run db:reset`    | Sinkronkan skema lalu isi ulang data contoh                        |

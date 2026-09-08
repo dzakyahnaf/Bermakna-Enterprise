@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { batalkanPesanan, unggahBuktiBayar } from "@/actions/order";
 import { tulisReview } from "@/actions/review";
-import { requireUser } from "@/lib/auth";
+import { getCurrentUser, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { ORDER_STATUS, ORDER_STATUS_META, PAYMENT_STATUS_META } from "@/lib/constants";
@@ -17,15 +18,12 @@ import { Alert, Avatar, Badge, Icon, Stars } from "@/components/ui";
 
 type Params = { params: Promise<{ code: string }>; searchParams: Promise<{ baru?: string }> };
 
-export const metadata: Metadata = { title: "Detail Pesanan" };
-
-export default async function DetailPesanan({ params, searchParams }: Params) {
-  const { code } = await params;
-  const { baru } = await searchParams;
-  const user = await requireUser();
-  const settings = await getSettings();
-
-  const pesanan = await prisma.order.findUnique({
+/**
+ * Dibungkus cache() agar generateMetadata dan komponen halaman berbagi satu
+ * hasil query yang sama dalam satu permintaan.
+ */
+const ambilPesanan = cache((code: string) =>
+  prisma.order.findUnique({
     where: { code },
     include: {
       service: { include: { category: true } },
@@ -36,7 +34,32 @@ export default async function DetailPesanan({ params, searchParams }: Params) {
       review: true,
       timeline: { orderBy: { createdAt: "asc" } },
     },
-  });
+  }),
+);
+
+/**
+ * Judul tab dibuat spesifik per pesanan, dan kepemilikannya diperiksa lebih
+ * awal. Query-nya dibagi dengan komponen halaman lewat cache(), jadi tidak ada
+ * tambahan perjalanan ke database.
+ */
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { code } = await params;
+  const user = await getCurrentUser();
+  if (!user) return { title: "Detail Pesanan" };
+
+  const pesanan = await ambilPesanan(code);
+  if (!pesanan || pesanan.buyerId !== user.id) notFound();
+
+  return { title: `Pesanan ${code}` };
+}
+
+export default async function DetailPesanan({ params, searchParams }: Params) {
+  const { code } = await params;
+  const { baru } = await searchParams;
+  const user = await requireUser();
+  const settings = await getSettings();
+
+  const pesanan = await ambilPesanan(code);
 
   if (!pesanan || pesanan.buyerId !== user.id) notFound();
 

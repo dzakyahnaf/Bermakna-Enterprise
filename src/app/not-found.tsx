@@ -1,6 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Logo } from "@/components/logo";
+
+/**
+ * Next.js App Router mengembalikan status 200 untuk notFound() pada halaman
+ * yang dirender dinamis, karena responsnya sudah mulai dialirkan sebelum
+ * pemeriksaan selesai (keterbatasan kerangka kerja, bukan pilihan kita).
+ * Karena statusnya tidak bisa diandalkan, penanda noindex dipasang di sini
+ * supaya mesin telusur tidak pernah mengindeks halaman yang tidak ada.
+ */
+export const metadata: Metadata = {
+  title: "Halaman tidak ditemukan",
+  robots: { index: false, follow: false },
+};
 
 export default function TidakDitemukan() {
   return (

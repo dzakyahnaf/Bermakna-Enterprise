@@ -15,7 +15,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push && npm run db:seed",
     "db:deploy": "prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "cek:data": "node --env-file=.env scripts/cek-data.mjs",
+    "cek:otorisasi": "node --env-file=.env scripts/cek-otorisasi.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

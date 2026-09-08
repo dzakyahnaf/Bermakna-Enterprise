@@ -19,7 +19,19 @@ const aleo = Aleo({
   variable: "--font-aleo",
 });
 
+/**
+ * Alamat kanonis situs, dipakai untuk menyusun URL absolut pada metadata.
+ * Saat domain khusus dipasang, cukup isi NEXT_PUBLIC_SITE_URL di Vercel —
+ * tidak ada URL yang perlu diubah di dalam kode.
+ */
+const alamatSitus =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(alamatSitus),
   title: {
     default: "Bermakna Enterprise — Marketplace Jasa Mahasiswa ITB",
     template: "%s · Bermakna Enterprise",
