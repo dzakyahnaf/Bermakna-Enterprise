@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Build Docker (VPS) butuh keluaran "standalone": server Node mandiri
+  // beserta hanya dependensi yang benar-benar dipakai. Vercel tidak
+  // membutuhkannya, jadi hanya dinyalakan oleh Dockerfile.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // Folder ini adalah akar proyek — mencegah Next.js salah menebak karena
   // ada lockfile lain di direktori induk.
   outputFileTracingRoot: __dirname,

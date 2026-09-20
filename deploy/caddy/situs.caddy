@@ -1,0 +1,23 @@
+# Bagian yang sama untuk semua alamat yang melayani aplikasi.
+
+encode zstd gzip
+
+# Gambar publik (layanan, portofolio, avatar) dilayani langsung dari disk,
+# tanpa melewati Node. Folder privat (KTM, bukti transfer) sengaja TIDAK
+# dipasang ke Caddy — hanya aplikasi yang bisa membukanya, lewat tautan
+# bertanda tangan.
+handle_path /berkas/* {
+	root * /srv/berkas
+	file_server
+	header Cache-Control "public, max-age=31536000, immutable"
+}
+
+handle {
+	reverse_proxy app:3000
+}
+
+header {
+	Strict-Transport-Security "max-age=63072000"
+	X-Content-Type-Options "nosniff"
+	-Server
+}

@@ -1,0 +1,8 @@
+# Jangan pernah masuk ke image: rahasia, hasil build lokal, dan riwayat git.
+.env
+.env*.local
+*.pem
+.git
+node_modules
+.next
+npm-debug.log*

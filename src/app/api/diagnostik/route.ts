@@ -1,5 +1,9 @@
+import { constants as fsConstants, promises as fs } from "node:fs";
+import path from "node:path";
+
 import { createClient } from "@supabase/supabase-js";
 
+import { pakaiDiskLokal } from "@/lib/penyimpanan";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -7,7 +11,8 @@ import { prisma } from "@/lib/prisma";
  *
  * Dibuat untuk menemukan penyebab galat setelah deploy tanpa harus membuka
  * log server. Di produksi endpoint ini MATI secara bawaan — nyalakan dengan
- * menambahkan variabel DIAGNOSTIK=1 di Vercel, lalu Redeploy.
+ * menambahkan variabel DIAGNOSTIK=1 (di Vercel, atau di .env server), lalu
+ * deploy ulang.
  *
  * Yang dilaporkan hanya: variabel mana yang terisi, host dan awalan nilainya,
  * serta hasil uji koneksi. NILAI RAHASIA TIDAK PERNAH DIKELUARKAN — kata sandi
@@ -19,9 +24,8 @@ export const dynamic = "force-dynamic";
 /**
  * Mati secara bawaan. Endpoint ini memaparkan konfigurasi infrastruktur
  * (walau tanpa nilai rahasia), jadi tidak pantas terbuka terus-menerus di
- * produksi. Nyalakan hanya ketika sedang menelusuri masalah deployment:
- * tambahkan variabel DIAGNOSTIK=1 di Vercel, Redeploy, lalu hapus lagi
- * variabelnya setelah selesai.
+ * produksi. Nyalakan hanya ketika sedang menelusuri masalah deployment,
+ * lalu hapus lagi variabelnya setelah selesai.
  */
 function aktif() {
   return process.env.DIAGNOSTIK === "1" || process.env.NODE_ENV !== "production";
@@ -70,11 +74,17 @@ export async function GET() {
   const secretKey =
     process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  // Variabel Supabase hanya wajib bila berkas disimpan di Supabase Storage.
+  const lokal = pakaiDiskLokal();
   const lingkungan = [
     periksaVar("DATABASE_URL", process.env.DATABASE_URL),
     periksaVar("DIRECT_URL", process.env.DIRECT_URL),
-    periksaVar("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),
-    periksaVar("SUPABASE_SECRET_KEY / SERVICE_ROLE_KEY", secretKey),
+    ...(lokal
+      ? [periksaVar("STORAGE_DIR", process.env.STORAGE_DIR)]
+      : [
+          periksaVar("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),
+          periksaVar("SUPABASE_SECRET_KEY / SERVICE_ROLE_KEY", secretKey),
+        ]),
     periksaVar("SESSION_SECRET", process.env.SESSION_SECRET),
   ];
 
@@ -104,7 +114,25 @@ export async function GET() {
   // ── Uji storage ───────────────────────────────────────────────────────
   let storage: Record<string, unknown>;
   try {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !secretKey) {
+    if (lokal) {
+      const folder = await Promise.all(
+        (["publik", "privat"] as const).map(async (wilayah) => {
+          const dir = path.join(process.env.STORAGE_DIR!, wilayah);
+          try {
+            await fs.mkdir(dir, { recursive: true });
+            await fs.access(dir, fsConstants.W_OK);
+            return { wilayah, dapatDitulis: true };
+          } catch (e) {
+            return { wilayah, dapatDitulis: false, kode: (e as NodeJS.ErrnoException).code };
+          }
+        }),
+      );
+      storage = {
+        status: folder.every((f) => f.dapatDitulis) ? "OK" : "GAGAL",
+        jenis: "disk lokal",
+        folder,
+      };
+    } else if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !secretKey) {
       storage = { status: "DILEWATI", alasan: "variabel Supabase belum lengkap" };
     } else {
       const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, secretKey, {
@@ -115,6 +143,7 @@ export async function GET() {
         ? { status: "GAGAL", pesan: samarkan(error.message).slice(0, 300) }
         : {
             status: "OK",
+            jenis: "Supabase Storage",
             bucket: data.map((b) => `${b.name} (${b.public ? "publik" : "privat"})`),
           };
     }
@@ -142,9 +171,9 @@ export async function GET() {
       database,
       storage,
       saran: sehat
-        ? "Semua sehat. Hapus variabel DIAGNOSTIK di Vercel untuk menutup endpoint ini lagi."
+        ? "Semua sehat. Hapus lagi variabel DIAGNOSTIK untuk menutup endpoint ini."
         : !semuaTerisi
-          ? "Ada variabel yang belum terisi. Tambahkan di Vercel ▸ Settings ▸ Environment Variables, lalu Redeploy."
+          ? "Ada variabel yang belum terisi. Lengkapi (Vercel ▸ Environment Variables, atau .env server), lalu deploy ulang."
           : "Variabel lengkap tetapi koneksi gagal — periksa pesan galat di atas.",
     },
     { status: sehat ? 200 : 503, headers: { "cache-control": "no-store" } },

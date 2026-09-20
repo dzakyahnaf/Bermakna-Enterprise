@@ -1,0 +1,11 @@
+# Sementara — dipakai hanya sebelum DNS diarahkan ke server ini, supaya
+# aplikasi bisa diuji lewat http://IP-SERVER. Aktifkan dengan
+# CADDY_CONFIG=Caddyfile.pra-dns di /opt/bermakna/.env, lalu hapus baris itu
+# setelah DNS pindah.
+#
+# Catatan: cookie sesi bertanda Secure, jadi login lewat browser baru
+# berfungsi setelah HTTPS aktif. Uji otomatis tidak terpengaruh.
+
+:80 {
+	import situs.caddy
+}

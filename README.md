@@ -164,12 +164,21 @@ catatan transaksi lama.
 
 ## Penanganan berkas & data pribadi
 
-Berkas unggahan dipisahkan ke dua bucket menurut sensitivitasnya:
+Berkas unggahan dipisahkan ke dua area menurut sensitivitasnya:
 
-| Bucket             | Isi                                     | Cara diakses                                        |
-| ------------------ | --------------------------------------- | --------------------------------------------------- |
-| `bermakna-publik`  | Foto layanan, portofolio, avatar         | URL publik biasa — memang untuk dilihat umum         |
-| `bermakna-privat`  | **Foto KTM, bukti transfer**             | Signed URL yang dibuat server, kedaluwarsa **1 jam** |
+| Area     | Isi                              | Cara diakses                                                 |
+| -------- | -------------------------------- | ------------------------------------------------------------ |
+| publik   | Foto layanan, portofolio, avatar | URL biasa (`/berkas/…`) — memang untuk dilihat umum            |
+| privat   | **Foto KTM, bukti transfer**     | Tautan bertanda tangan buatan server, kedaluwarsa **1 jam**    |
+
+Tempat penyimpanannya dipilih lewat variabel `STORAGE_DIR` (`src/lib/penyimpanan.ts`):
+
+- **Terisi** (produksi di VPS) → disk server. Gambar publik dilayani Caddy langsung dari
+  disk. Folder privat sama sekali tidak dipasang ke Caddy; satu-satunya jalan membukanya
+  adalah rute `/berkas-privat/…` yang memeriksa tanda tangan HMAC dan masa berlakunya.
+- **Kosong** (Vercel) → Supabase Storage, bucket `bermakna-publik` dan `bermakna-privat`.
+
+Keduanya menyimpan *path* yang sama, jadi data bisa dipindahkan cukup dengan menyalin berkas.
 
 Berkas privat hanya dibuatkan tautannya pada tiga halaman, itu pun setelah pemeriksaan
 peran di server:
@@ -183,12 +192,113 @@ isi tabel, ia tetap tidak bisa membuka berkasnya.
 
 Semua gambar dikompresi di server memakai `sharp` sebelum diunggah: diputar sesuai
 orientasi EXIF, diperkecil (maksimal 512–2000 px tergantung jenisnya), lalu diubah ke
-WebP. Foto ponsel 3–5 MB biasanya turun ke bawah 200 KB — penting karena kuota
-penyimpanan Supabase paket gratis hanya 1 GB.
+WebP. Foto ponsel 3–5 MB biasanya turun ke bawah 200 KB, sehingga disk 40 GB di VPS
+cukup untuk bertahun-tahun.
 
 ---
 
-## Deploy ke Vercel
+## Deploy ke VPS (produksi)
+
+Produksi berjalan di **satu VPS** (JagoanHosting Nebula — 2 vCPU, 2 GB RAM, Rocky Linux 8)
+yang menjalankan tiga kontainer lewat Docker Compose:
+
+| Kontainer | Isi                                                        | Terbuka ke            |
+| --------- | ---------------------------------------------------------- | --------------------- |
+| `caddy`   | HTTPS otomatis (Let's Encrypt) + gambar publik dari disk    | internet (80, 443)    |
+| `app`     | Next.js *standalone*                                        | hanya Caddy           |
+| `db`      | PostgreSQL 17                                               | hanya `127.0.0.1`     |
+
+**Mengapa bukan Vercel:** paket Hobby melarang penggunaan komersial, sedangkan platform ini
+memungut komisi. Jalur sahnya — Vercel Pro + Supabase Pro — sekitar Rp 8,6 juta/tahun,
+jauh di atas pos *Operating & Infrastructure* RAB (Rp 1,2 juta). Satu VPS sekitar
+Rp 1,33 juta/tahun (termasuk PPN) sudah mencakup aplikasi, database, dan penyimpanan berkas.
+
+### Deploy versi baru
+
+Dari folder proyek (Git Bash, macOS, atau Linux):
+
+```bash
+bash deploy/deploy.sh
+```
+
+Skrip mengirim kode ke server, build di sana, menerapkan perubahan skema
+(`prisma db push`), lalu mengganti aplikasi setelah versi baru dinyatakan sehat.
+
+- **Build gagal** → versi lama tetap melayani, tidak ada yang berubah.
+- **Perubahan skema yang akan menghapus data** → ditolak Prisma, deploy berhenti.
+- **Rahasia tidak pernah ikut terkirim** — `.env` lokal dikecualikan; rahasia produksi
+  tinggal di `/opt/bermakna/.env` di server.
+
+Butuh SSH key yang terdaftar di server. Login dengan password **dimatikan**. Key deploy
+tersimpan di `~/.ssh/bermakna_vps` pada laptop yang menyiapkan server; anggota tim lain
+menambahkan *public key* miliknya sendiri ke `/root/.ssh/authorized_keys`.
+
+### Susunan server
+
+```
+/opt/bermakna/
+├── .env        rahasia produksi (chmod 600) — contohnya di deploy/env.contoh
+├── app         symlink ke rilis yang sedang aktif
+├── rilis/      tiga rilis terakhir
+└── cadangan/   cadangan database (harian) dan berkas unggahan (mingguan)
+```
+
+### Perintah sehari-hari
+
+```bash
+ssh -i ~/.ssh/bermakna_vps root@38.103.171.82
+dc ps               # status ketiga kontainer
+dc logs -f app      # log aplikasi (Ctrl+C untuk keluar)
+dc restart app      # menyalakan ulang aplikasi saja
+```
+
+`dc` adalah alias untuk `docker compose -f /opt/bermakna/app/deploy/compose.yaml --env-file /opt/bermakna/.env`,
+sudah terpasang di server.
+
+**Membuka database dari laptop** lewat SSH tunnel (port database tidak pernah terbuka ke internet):
+
+```bash
+ssh -i ~/.ssh/bermakna_vps -N -L 15432:127.0.0.1:5432 root@38.103.171.82
+# di terminal lain — sandinya ada di /opt/bermakna/.env (POSTGRES_PASSWORD):
+DATABASE_URL="postgresql://bermakna:SANDI@127.0.0.1:15432/bermakna" npx prisma studio
+```
+
+### Cadangan & pemulihan
+
+`deploy/cadangkan.sh` berjalan otomatis setiap malam pukul 02.30 WIB: database setiap hari
+(disimpan 14 hari), berkas unggahan setiap Minggu (disimpan 4 minggu), ke
+`/opt/bermakna/cadangan`. Cadangan di disk yang sama hanya melindungi dari kesalahan
+manusia — **salin ke luar server secara berkala**:
+
+```bash
+scp -i ~/.ssh/bermakna_vps -r root@38.103.171.82:/opt/bermakna/cadangan ./cadangan-vps
+```
+
+Memulihkan database dari cadangan:
+
+```bash
+dc exec -T db pg_restore -U bermakna -d bermakna --clean --if-exists < /opt/bermakna/cadangan/db-YYYYMMDD-HHMM.dump
+```
+
+### Yang perlu diketahui
+
+- **Jangan menjalankan `reboot` dari dalam server.** Di JagoanHosting perintah itu
+  *mematikan* VM, dan VM harus dinyalakan lagi dari panel. Untuk reboot, pakai tombol
+  **Reboot** di member.jagoanhosting.com — semua kontainer menyala sendiri setelahnya.
+- Pembaruan keamanan sistem operasi terpasang otomatis setiap hari (`dnf-automatic`).
+- Firewall hanya membuka SSH, HTTP, dan HTTPS.
+- Menyiapkan server baru dari nol: `ssh root@IP 'bash -s' < deploy/siapkan-server.sh`,
+  buat `/opt/bermakna/.env` dari `deploy/env.contoh`, lalu `bash deploy/deploy.sh`.
+- Data awal dipindahkan dari Supabase dengan `bash deploy/migrasi-dari-supabase.sh`
+  (mengosongkan database VPS lalu menyalin ulang seluruh isi database dan berkas).
+
+---
+
+## Deploy ke Vercel (bukan lagi produksi)
+
+> Produksi sudah pindah ke VPS (bagian sebelumnya). Bagian ini hanya berlaku bila Vercel
+> dipakai lagi — misalnya untuk pratinjau — dan memakai Supabase sebagai database dan
+> penyimpanan berkas, karena Vercel tidak punya disk permanen.
 
 **Berkas `.env` tidak ikut ter-commit** (memang sengaja — isinya rahasia). Karena itu
 Vercel tidak mendapat satu pun variabel dari repositori; semuanya harus dimasukkan
@@ -257,21 +367,21 @@ pengguna mengaktifkan *prefers-reduced-motion*.
 
 ## Memasang domain sendiri
 
-1. **Vercel ▸ Settings ▸ Domains ▸ Add Domain** — masukkan domainnya. Vercel akan
-   menawarkan menambahkan `www` sekaligus; terima saja.
-2. Vercel menampilkan nilai DNS **khusus proyek ini**. Salin apa adanya ke panel DNS
-   registrar:
-   - domain utama (`@`) → **A record** ke alamat IP yang ditampilkan Vercel
-   - `www` → **CNAME** ke nilai yang ditampilkan Vercel (berbentuk
-     `xxxxxxxx.vercel-dns-0xx.com`, berbeda untuk tiap proyek — jangan menyalin
-     dari panduan mana pun di internet)
-3. Tunggu propagasi, lalu Vercel menerbitkan sertifikat HTTPS sendiri.
-4. Tambahkan variabel **`NEXT_PUBLIC_SITE_URL`** di Vercel berisi alamat domain
-   barunya, misalnya `https://contoh.my.id`, lalu **Redeploy**. Variabel ini dipakai
-   `metadataBase`, `robots.txt`, dan `sitemap.xml`; tanpa itu ketiganya masih
-   menunjuk ke alamat `.vercel.app`.
+Domain produksi: **maknaprice.my.id** (dibeli di Sumopod). Di panel DNS registrar:
 
-Tidak ada URL yang ter-hardcode di dalam kode, jadi tidak ada berkas yang perlu diubah.
+| Nama  | Jenis | Nilai            |
+| ----- | ----- | ---------------- |
+| `@`   | A     | `38.103.171.82`  |
+| `www` | A     | `38.103.171.82`  |
+
+Caddy menerbitkan dan memperpanjang sertifikat HTTPS sendiri begitu DNS mengarah ke
+server — tidak ada langkah manual. Alamat kanonisnya `https://maknaprice.my.id`;
+`www` dan akses lewat IP dialihkan ke sana (`deploy/caddy/Caddyfile`), selaras dengan
+`NEXT_PUBLIC_SITE_URL` yang dipakai `metadataBase`, `robots.txt`, dan `sitemap.xml`.
+
+Selama DNS belum pindah, server bisa diuji lewat `http://38.103.171.82` dengan
+`CADDY_CONFIG=Caddyfile.pra-dns` di `/opt/bermakna/.env`. Hapus baris itu setelah DNS
+pindah, lalu jalankan `bash deploy/deploy.sh`.
 
 ---
 
@@ -334,6 +444,15 @@ warna, sepuluh kategori layanan juga mendapat warnanya sendiri lewat
 ## Struktur proyek
 
 ```
+Dockerfile               Image produksi (Next.js standalone)
+deploy/
+  compose.yaml           Produksi di VPS: app + PostgreSQL + Caddy
+  caddy/                 HTTPS otomatis, alih www → domain utama, gambar publik
+  deploy.sh              Deploy versi terkini dari laptop
+  cadangkan.sh           Cadangan harian (cron di server)
+  siapkan-server.sh      Menyiapkan VPS baru dari nol
+  migrasi-dari-supabase.sh  Memindahkan database & berkas dari Supabase
+  env.contoh             Daftar rahasia produksi
 prisma/
   schema.prisma          Skema basis data (12 model)
   seed.ts                Data awal: kategori, akun demo, layanan, transaksi
@@ -348,12 +467,16 @@ src/
     mitra/               Dashboard Penyedia Jasa
     admin/               Dashboard Administrasi
     api/keluar/          Endpoint logout
+    api/sehat/           Pemeriksa kesehatan untuk Docker
+    berkas/              Gambar publik dari disk (cadangan bila tanpa Caddy)
+    berkas-privat/       KTM & bukti transfer — hanya lewat tautan bertanda tangan
   actions/               Server Action (auth, order, review, provider, admin)
   components/            Komponen UI yang dipakai bersama
   lib/
     auth.ts              Sesi, hash kata sandi, penjagaan peran
+    penyimpanan.ts       Disk server (VPS) atau Supabase Storage (Vercel)
     supabase.ts          Klien Supabase sisi server + nama bucket
-    upload.ts            Kompresi gambar, unggah, signed URL
+    upload.ts            Kompresi gambar, unggah, tautan berkas privat
     constants.ts         Status, kategori, satuan harga, target proposal
     settings.ts          Pengaturan platform & perhitungan biaya
     format.ts            Format rupiah, tanggal, slug, tautan WhatsApp
@@ -362,7 +485,8 @@ src/
 ### Teknologi
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 ·
-Prisma · **Supabase** (PostgreSQL + Storage) · sharp.
+Prisma · PostgreSQL 17 · sharp · Docker Compose + Caddy di VPS
+(Supabase Storage tetap didukung untuk deploy di Vercel).
 
 Autentikasi ditangani sendiri memakai `node:crypto` bawaan — kata sandi di-hash dengan
 **scrypt**, sesi disimpan pada cookie `httpOnly` bertanda tangan **HMAC-SHA256**.
@@ -374,27 +498,20 @@ alur verifikasi penyedia tetap sepenuhnya di tangan pengurus.
 
 ## Catatan operasional
 
-**Proyek Supabase paket gratis di-pause setelah satu minggu tanpa aktivitas.** Kalau ini
-terjadi menjelang presentasi PMW, aplikasi tidak bisa membaca data sampai proyeknya
-diaktifkan kembali dari dashboard. Biasakan membuka dashboard atau situsnya minimal
-seminggu sekali, dan pastikan sudah aktif sehari sebelum penilaian.
-
-Batas paket gratis: 500 MB database, 1 GB penyimpanan berkas, 5 GB egress per bulan,
-maksimal 2 proyek aktif. Untuk target tahun pertama (500 pengguna, 150 penyedia,
-200 transaksi) yang paling cepat penuh adalah **penyimpanan berkas**, bukan database —
-karena itu kompresi gambar dipasang sejak awal. Paket Pro seharga $25/bulan setara
-sekitar Rp 4,8 juta setahun, sementara pos *Operating & Infrastructure* pada RAB hanya
-Rp 1,2 juta — jadi rencanakan lebih dulu kalau memang perlu naik paket.
-
-`next build` sengaja tidak menyentuh database sama sekali, sehingga deploy tetap berhasil
-walaupun proyek Supabase sedang tidak aktif.
+- **Kapasitas** (diukur di server, saat diam): aplikasi ±90 MB, PostgreSQL ±50 MB,
+  Caddy ±10 MB — seluruh server ±510 MB dari 1,7 GB. Masih longgar untuk target tahun
+  pertama (500 pengguna, 150 penyedia, 200 transaksi). Swap 2 GB hanya terpakai saat build.
+- **Tidak ada lagi jeda "proyek di-pause".** Database dan berkas kini di server sendiri,
+  bukan Supabase paket gratis yang berhenti setelah seminggu tanpa aktivitas.
+- **Cadangan** berjalan otomatis setiap malam, tetapi tetap berada di disk yang sama —
+  salin `/opt/bermakna/cadangan` ke luar server secara berkala (lihat *Deploy ke VPS*).
+- `next build` tidak menyentuh database, jadi build tetap berhasil walaupun database
+  sedang mati; kesalahan konfigurasi baru terlihat saat halaman dibuka.
 
 ## Sebelum menerima pengguna sungguhan
 
-1. **Ganti `SESSION_SECRET`** dengan nilai acak baru:
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   ```
+1. ~~**Ganti `SESSION_SECRET`**~~ — sudah: server produksi memakai nilai acak baru yang
+   dibuat langsung di server (`/opt/bermakna/.env`), berbeda dari nilai pengembangan.
 2. **Hapus data contoh.** Jalankan `npm run db:seed` untuk mengosongkan lalu mengisi ulang,
    atau hapus akun demo satu per satu dari `/admin/pengguna`.
 3. **Ganti rekening penampungan** di `/admin/pengaturan` menjadi rekening resmi

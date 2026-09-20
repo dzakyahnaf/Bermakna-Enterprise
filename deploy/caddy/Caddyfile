@@ -1,0 +1,17 @@
+# Produksi. Sertifikat HTTPS diterbitkan & diperpanjang otomatis oleh Caddy
+# (Let's Encrypt) begitu DNS domain mengarah ke server ini.
+
+maknaprice.my.id {
+	import situs.caddy
+}
+
+# Satu alamat kanonis — sama dengan NEXT_PUBLIC_SITE_URL — supaya mesin
+# telusur tidak menganggap www dan tanpa-www sebagai dua situs.
+www.maknaprice.my.id {
+	redir https://maknaprice.my.id{uri} permanent
+}
+
+# Akses lewat IP mentah diarahkan ke domain.
+:80 {
+	redir https://maknaprice.my.id{uri} permanent
+}

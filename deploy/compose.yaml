@@ -1,0 +1,110 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Bermakna Enterprise — produksi di satu VPS.
+#
+#   db     PostgreSQL 17. Hanya terbuka di 127.0.0.1 — dari luar server,
+#          akses lewat SSH tunnel (lihat README bagian Deploy).
+#   app    Next.js standalone. Tidak terbuka ke internet; hanya Caddy yang
+#          bisa menjangkaunya.
+#   caddy  HTTPS otomatis + melayani gambar publik langsung dari disk.
+#
+# Rahasia dibaca dari /opt/bermakna/.env — contohnya di deploy/env.contoh.
+# Dijalankan oleh deploy/deploy.sh; tidak perlu dipanggil manual.
+# ─────────────────────────────────────────────────────────────────────────
+name: bermakna
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bermakna
+      POSTGRES_USER: bermakna
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?isi POSTGRES_PASSWORD di /opt/bermakna/.env}
+    # Disetel untuk VPS 2 GB yang juga menjalankan aplikasi dan Caddy.
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=512MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c max_connections=30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bermakna -d bermakna"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ..
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?isi NEXT_PUBLIC_SITE_URL di /opt/bermakna/.env}
+    image: bermakna-app:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://bermakna:${POSTGRES_PASSWORD}@db:5432/bermakna
+      DIRECT_URL: postgresql://bermakna:${POSTGRES_PASSWORD}@db:5432/bermakna
+      SESSION_SECRET: ${SESSION_SECRET:?isi SESSION_SECRET di /opt/bermakna/.env}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      DIAGNOSTIK: ${DIAGNOSTIK:-0}
+      NODE_OPTIONS: --max-old-space-size=512
+    volumes:
+      - berkas_publik:/data/berkas/publik
+      - berkas_privat:/data/berkas/privat
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/sehat').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+      start_interval: 2s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: ["caddy", "run", "--config", "/etc/caddy/${CADDY_CONFIG:-Caddyfile}", "--adapter", "caddyfile"]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy:/etc/caddy:ro,z
+      # Hanya folder publik. Folder privat tidak pernah dipasang ke Caddy.
+      - berkas_publik:/srv/berkas:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Alat sekali-jalan (tidak ikut `up`): prisma db push saat deploy, dsb.
+  alat:
+    profiles: ["alat"]
+    build:
+      context: ..
+      target: dependensi
+    image: bermakna-alat:latest
+    environment:
+      DATABASE_URL: postgresql://bermakna:${POSTGRES_PASSWORD}@db:5432/bermakna
+      DIRECT_URL: postgresql://bermakna:${POSTGRES_PASSWORD}@db:5432/bermakna
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  berkas_publik:
+  berkas_privat:
+  caddy_data:
+  caddy_config:

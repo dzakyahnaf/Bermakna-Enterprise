@@ -1,0 +1,5 @@
+# Berkas yang dieksekusi atau dibaca di server Linux harus berakhiran LF,
+# walaupun repo di-clone di Windows dengan core.autocrlf=true.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+deploy/**   text eol=lf
