@@ -1,14 +1,14 @@
-# Produksi. Sertifikat HTTPS diterbitkan & diperpanjang otomatis oleh Caddy
+# Produksi. Sertifikat HTTPS diterbitkan dan diperpanjang otomatis oleh Caddy
 # (Let's Encrypt) begitu DNS domain mengarah ke server ini.
-
-maknaprice.my.id {
+#
+# Domain utama dan www dilayani sama persis, tanpa saling mengalihkan.
+# Alasannya: versi lama di Vercel mengalihkan domain utama ke www dengan status
+# 308 (permanen), dan browser menyimpan pengalihan permanen itu. Bila www
+# dialihkan balik ke domain utama, browser tersebut akan berputar tanpa henti.
+# Alamat kanonis untuk mesin telusur ditegaskan lewat <link rel="canonical">
+# yang dibangun dari NEXT_PUBLIC_SITE_URL.
+maknaprice.my.id, www.maknaprice.my.id {
 	import situs.caddy
-}
-
-# Satu alamat kanonis — sama dengan NEXT_PUBLIC_SITE_URL — supaya mesin
-# telusur tidak menganggap www dan tanpa-www sebagai dua situs.
-www.maknaprice.my.id {
-	redir https://maknaprice.my.id{uri} permanent
 }
 
 # Akses lewat IP mentah diarahkan ke domain.

@@ -375,9 +375,15 @@ Domain produksi: **maknaprice.my.id** (dibeli di Sumopod). Di panel DNS registra
 | `www` | A     | `38.103.171.82`  |
 
 Caddy menerbitkan dan memperpanjang sertifikat HTTPS sendiri begitu DNS mengarah ke
-server — tidak ada langkah manual. Alamat kanonisnya `https://maknaprice.my.id`;
-`www` dan akses lewat IP dialihkan ke sana (`deploy/caddy/Caddyfile`), selaras dengan
-`NEXT_PUBLIC_SITE_URL` yang dipakai `metadataBase`, `robots.txt`, dan `sitemap.xml`.
+server — tidak ada langkah manual.
+
+Domain utama dan `www` **dilayani sama persis, tanpa saling mengalihkan**. Versi lama di
+Vercel mengalihkan domain utama ke `www` dengan status 308 (permanen) dan browser
+menyimpan pengalihan permanen; kalau `www` dialihkan balik, browser itu akan berputar
+tanpa henti. Alamat kanonis untuk mesin telusur ditegaskan lewat `<link rel="canonical">`
+pada setiap halaman, dibangun dari `NEXT_PUBLIC_SITE_URL` — variabel yang sama yang
+dipakai `metadataBase`, `robots.txt`, dan `sitemap.xml`. Akses lewat IP mentah dialihkan
+ke domain.
 
 Selama DNS belum pindah, server bisa diuji lewat `http://38.103.171.82` dengan
 `CADDY_CONFIG=Caddyfile.pra-dns` di `/opt/bermakna/.env`. Hapus baris itu setelah DNS

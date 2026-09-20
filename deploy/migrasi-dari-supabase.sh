@@ -14,6 +14,17 @@
 # ─────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# PENGAMAN. Sejak 20 September 2026 produksi berjalan di VPS dan Supabase tidak
+# lagi menerima tulisan. Menjalankan skrip ini sekarang akan MENGHAPUS data
+# produksi dan menggantinya dengan isi Supabase yang sudah usang.
+if [ "${SAYA_PAHAM_DATA_VPS_DIHAPUS:-}" != "1" ]; then
+  echo "✗ Skrip ini mengosongkan database VPS lalu mengisinya ulang dari Supabase."
+  echo "  Produksi sudah pindah ke VPS, jadi ini akan MENGHAPUS data produksi."
+  echo "  Bila memang itu yang diinginkan:"
+  echo "     SAYA_PAHAM_DATA_VPS_DIHAPUS=1 bash deploy/migrasi-dari-supabase.sh"
+  exit 1
+fi
+
 SERVER="${SERVER:-root@38.103.171.82}"
 KUNCI="${KUNCI:-$HOME/.ssh/bermakna_vps}"
 

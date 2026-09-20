@@ -38,6 +38,9 @@ export const metadata: Metadata = {
   },
   description:
     "Satu kanal digital untuk semua kebutuhan jasa mahasiswa ITB: tutor akademik, mentor kompetisi, desain, dokumentasi, event, hingga kos & kontrakan. Dikelola KM ITB 2026/2027.",
+  // Domain utama dan www sama-sama dilayani (lihat deploy/caddy/Caddyfile),
+  // jadi setiap halaman menegaskan sendiri alamat kanonisnya.
+  alternates: { canonical: "./" },
   keywords: [
     "marketplace mahasiswa",
     "jasa mahasiswa ITB",
